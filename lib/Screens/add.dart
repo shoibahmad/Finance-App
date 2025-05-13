@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:managment/data/model/add_date.dart';
+import 'package:managment/data/model/add_date.dart'; // Ensure this path is correct
 import 'package:hive_flutter/hive_flutter.dart';
 
 class Add_Screen extends StatefulWidget {
@@ -10,47 +10,67 @@ class Add_Screen extends StatefulWidget {
 }
 
 class _Add_ScreenState extends State<Add_Screen> {
-  final box = Hive.box<Add_data>('data');
-  DateTime date = new DateTime.now();
-  String? selctedItem;
-  String? selctedItemi;
-  final TextEditingController expalin_C = TextEditingController();
-  FocusNode ex = FocusNode();
-  final TextEditingController amount_c = TextEditingController();
-  FocusNode amount_ = FocusNode();
-  final List<String> _item = [
-    'food',
-    "Transfer",
-    "Transportation",
-    "Education"
+  // Hive Box
+  final box = Hive.box<Add_data>('data'); // Ensure Add_data type matches your model
+
+  // State Variables
+  DateTime date = DateTime.now();
+  String? selectedCategory; // Renamed from selctedItem for clarity
+  String? selectedType; // Renamed from selctedItemi for clarity
+
+  // Controllers and Focus Nodes
+  final TextEditingController explainController = TextEditingController();
+  final FocusNode explainFocusNode = FocusNode();
+  final TextEditingController amountController = TextEditingController();
+  final FocusNode amountFocusNode = FocusNode();
+
+  // Dropdown Items
+  final List<String> _categories = [
+    'food',       // Ensure corresponding images exist: images/food.png, etc.
+    'Transfer',
+    'Transportation',
+    'Education'
   ];
-  final List<String> _itemei = [
+  final List<String> _types = [
     'Income',
-    "Expand",
+    'Expense', // Assuming 'Expand' means Expense
   ];
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    ex.addListener(() {
-      setState(() {});
+    // Add listeners to update UI state when focus changes (optional)
+    explainFocusNode.addListener(() {
+      if (mounted) setState(() {}); // Rebuild to show focus highlight
     });
-    amount_.addListener(() {
-      setState(() {});
+    amountFocusNode.addListener(() {
+      if (mounted) setState(() {});
     });
   }
 
+  @override
+  void dispose() {
+    // Clean up controllers and focus nodes
+    explainController.dispose();
+    explainFocusNode.dispose();
+    amountController.dispose();
+    amountFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      // Use theme background color
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Stack(
           alignment: AlignmentDirectional.center,
           children: [
-            background_container(context),
+            _buildBackground(context),
             Positioned(
-              top: 120,
-              child: main_container(),
+              top: 120, // Adjust as needed based on background height
+              child: _buildMainContainer(),
             ),
           ],
         ),
@@ -58,54 +78,345 @@ class _Add_ScreenState extends State<Add_Screen> {
     );
   }
 
-  Container main_container() {
+  // --- Main Container ---
+  Widget _buildMainContainer() {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: Colors.white,
-      ),
-      height: 550,
-      width: 340,
-      child: Column(
-        children: [
-          SizedBox(height: 50),
-          name(),
-          SizedBox(height: 30),
-          explain(),
-          SizedBox(height: 30),
-          amount(),
-          SizedBox(height: 30),
-          How(),
-          SizedBox(height: 30),
-          date_time(),
-          Spacer(),
-          save(),
-          SizedBox(height: 25),
+        color: Colors.white, // Keep card white or use Theme.of(context).cardColor
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
         ],
+      ),
+      height: 560, // Increased height slightly for better spacing
+      width: MediaQuery.of(context).size.width * 0.9, // Responsive width
+      child: SingleChildScrollView( // Allow scrolling if content overflows
+         padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
+          children: [
+            const SizedBox(height: 30), // Spacing from top inside container
+            _buildCategoryDropdown(),
+            const SizedBox(height: 30),
+            _buildExplainField(),
+            const SizedBox(height: 30),
+            _buildAmountField(),
+            const SizedBox(height: 30),
+            _buildTypeDropdown(),
+            const SizedBox(height: 30),
+            _buildDateTimePicker(),
+            const SizedBox(height: 40), // Spacing before save button
+            _buildSaveButton(),
+            const SizedBox(height: 20), // Bottom padding
+          ],
+        ),
       ),
     );
   }
 
-  GestureDetector save() {
+  // --- Form Field Widgets ---
+
+  Widget _buildCategoryDropdown() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        width: double.infinity, // Take available width
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            width: 2,
+            color: Colors.grey.shade400, // Use a slightly lighter grey
+          ),
+        ),
+        child: DropdownButton<String>(
+          value: selectedCategory,
+          hint: Text(
+            'Category', // More descriptive hint
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+          isExpanded: true,
+          underline: const SizedBox(), // Remove default underline
+          dropdownColor: Colors.white,
+          items: _categories.map((category) {
+            return DropdownMenuItem<String>(
+              value: category,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 40,
+                    // Use Image.asset with errorBuilder for robustness
+                    child: Image.asset(
+                      'images/$category.png', // Ensure these paths are correct
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.error_outline, color: Colors.red, size: 30), // Fallback icon
+                       height: 30, // Consistent height
+                       width: 30, // Consistent width
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Text(
+                    category,
+                    style: const TextStyle(fontSize: 17),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                selectedCategory = value;
+              });
+            }
+          },
+          // Customize the selected item appearance if needed
+          selectedItemBuilder: (BuildContext context) {
+            return _categories.map<Widget>((item) {
+              return Row(
+                 mainAxisAlignment: MainAxisAlignment.start, // Align left
+                children: [
+                   SizedBox(
+                    width: 40,
+                    child: Image.asset(
+                      'images/$item.png',
+                       errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.error_outline, color: Colors.red, size: 30),
+                       height: 30,
+                       width: 30,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Text(item, style: const TextStyle(fontSize: 16)),
+                ],
+              );
+            }).toList();
+          },
+        ),
+      ),
+    );
+  }
+
+   Widget _buildExplainField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: TextField(
+        focusNode: explainFocusNode,
+        controller: explainController,
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+          labelText: 'Explanation (Optional)',
+          labelStyle: TextStyle(fontSize: 17, color: Colors.grey.shade500),
+          border: OutlineInputBorder( // Use OutlineInputBorder for consistency
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(width: 2, color: Colors.grey.shade400)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(width: 2, color: Colors.grey.shade400)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(width: 2, color: Theme.of(context).primaryColor)),
+        ),
+         maxLines: 1, // Single line explanation
+      ),
+    );
+  }
+
+  Widget _buildAmountField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: TextField(
+        keyboardType: TextInputType.numberWithOptions(decimal: true), // Allow decimals
+        focusNode: amountFocusNode,
+        controller: amountController,
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+          labelText: 'Amount',
+          labelStyle: TextStyle(fontSize: 17, color: Colors.grey.shade500),
+           border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(width: 2, color: Colors.grey.shade400)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(width: 2, color: Colors.grey.shade400)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(width: 2, color: Theme.of(context).primaryColor)),
+           prefixIcon: Icon(Icons.attach_money, color: Colors.grey.shade600, size: 20), // Added currency icon
+        ),
+      ),
+    );
+  }
+
+ Widget _buildTypeDropdown() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            width: 2,
+            color: Colors.grey.shade400,
+          ),
+        ),
+        child: DropdownButton<String>(
+          value: selectedType,
+          hint: Text(
+            'Type (Income/Expense)', // Clearer hint
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+          isExpanded: true,
+          underline: const SizedBox(),
+          dropdownColor: Colors.white,
+          items: _types.map((type) {
+            return DropdownMenuItem<String>(
+              value: type,
+              child: Text(
+                type,
+                style: const TextStyle(fontSize: 17),
+              ),
+            );
+          }).toList(),
+          onChanged: (value) {
+             if (value != null) {
+               setState(() {
+                selectedType = value;
+              });
+             }
+          },
+           selectedItemBuilder: (BuildContext context) {
+            return _types.map<Widget>((item) {
+              return Align( // Align text to the start
+                alignment: Alignment.centerLeft,
+                child: Text(item, style: const TextStyle(fontSize: 16)),
+              );
+            }).toList();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTimePicker() {
+    return Container(
+      alignment: Alignment.centerLeft, // Align text left
+      margin: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(width: 2, color: Colors.grey.shade400)),
+      width: double.infinity,
+      child: TextButton(
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15), // Consistent padding
+          alignment: Alignment.centerLeft // Ensure text inside button is left aligned
+        ),
+        onPressed: () async {
+          DateTime? newDate = await showDatePicker(
+            context: context,
+            initialDate: date,
+            firstDate: DateTime(2020), // Reasonable start date
+            lastDate: DateTime.now().add(const Duration(days: 365)), // Allow up to 1 year in future
+             builder: (context, child) { // Optional: Theme the date picker
+              return Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: ColorScheme.light(
+                    primary: Theme.of(context).primaryColor, // header background color
+                    onPrimary: Colors.white, // header text color
+                    onSurface: Colors.black, // body text color
+                  ),
+                  textButtonTheme: TextButtonThemeData(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).primaryColor, // button text color
+                    ),
+                  ),
+                ),
+                child: child!,
+              );
+            },
+          );
+
+          // Important: Check for null correctly
+          if (newDate == null) return;
+
+          // Update the state with the selected date
+          setState(() {
+            date = newDate;
+          });
+        },
+        // Format date as Day / Month / Year (more standard)
+        child: Text(
+          'Date : ${date.day} / ${date.month} / ${date.year}',
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.black87, // Darker text for readability
+          ),
+        ),
+      ),
+    );
+  }
+
+   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: () {
-        var add = Add_data(
-            selctedItemi!, amount_c.text, date, expalin_C.text, selctedItem!);
-        box.add(add);
-        Navigator.of(context).pop();
+        // --- Validation ---
+        if (selectedCategory == null) {
+          _showErrorSnackbar('Please select a category.');
+          return;
+        }
+        if (amountController.text.isEmpty || double.tryParse(amountController.text) == null) {
+          _showErrorSnackbar('Please enter a valid amount.');
+          return;
+        }
+         if (selectedType == null) {
+          _showErrorSnackbar('Please select the type (Income/Expense).');
+          return;
+        }
+        // --- End Validation ---
+
+        // Create data model object
+        var newTransaction = Add_data(
+          selectedType!,        // Now safe due to validation
+          amountController.text, // Store as string as per model
+          date,
+          explainController.text.isEmpty ? selectedCategory! : explainController.text, // Use category if explain is empty
+          selectedCategory!,     // Now safe due to validation
+        );
+
+        // Add to Hive
+        box.add(newTransaction).then((_) {
+          // Close screen after successful save
+          Navigator.of(context).pop();
+           ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${newTransaction.name} transaction saved successfully!'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            )
+          );
+        }).catchError((error) {
+           _showErrorSnackbar('Failed to save transaction: $error');
+        });
+
       },
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          color: Color(0xff368983),
+          color: Theme.of(context).primaryColor, // Use theme color
         ),
-        width: 120,
+        width: 150, // Slightly wider button
         height: 50,
-        child: Text(
-          'Save',
+        child: const Text(
+          'Save Transaction',
           style: TextStyle(
-            fontFamily: 'f',
+            fontFamily: 'f', // Make sure this font is configured in pubspec.yaml
             fontWeight: FontWeight.w600,
             color: Colors.white,
             fontSize: 17,
@@ -115,242 +426,49 @@ class _Add_ScreenState extends State<Add_Screen> {
     );
   }
 
-  Widget date_time() {
-    return Container(
-      alignment: Alignment.bottomLeft,
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(width: 2, color: Color(0xffC5C5C5))),
-      width: 300,
-      child: TextButton(
-        onPressed: () async {
-          DateTime? newDate = await showDatePicker(
-              context: context,
-              initialDate: date,
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2100));
-          if (newDate == Null) return;
-          setState(() {
-            date = newDate!;
-          });
-        },
-        child: Text(
-          'Date : ${date.year} / ${date.day} / ${date.month}',
-          style: TextStyle(
-            fontSize: 15,
-            color: Colors.black,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Padding How() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 15),
-        width: 300,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            width: 2,
-            color: Color(0xffC5C5C5),
-          ),
-        ),
-        child: DropdownButton<String>(
-          value: selctedItemi,
-          onChanged: ((value) {
-            setState(() {
-              selctedItemi = value!;
-            });
-          }),
-          items: _itemei
-              .map((e) => DropdownMenuItem(
-                    child: Container(
-                      alignment: Alignment.center,
-                      child: Row(
-                        children: [
-                          Text(
-                            e,
-                            style: TextStyle(fontSize: 18),
-                          )
-                        ],
-                      ),
-                    ),
-                    value: e,
-                  ))
-              .toList(),
-          selectedItemBuilder: (BuildContext context) => _itemei
-              .map((e) => Row(
-                    children: [Text(e)],
-                  ))
-              .toList(),
-          hint: Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              'How',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-          dropdownColor: Colors.white,
-          isExpanded: true,
-          underline: Container(),
-        ),
-      ),
-    );
-  }
-
-  Padding amount() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: TextField(
-        keyboardType: TextInputType.number,
-        focusNode: amount_,
-        controller: amount_c,
-        decoration: InputDecoration(
-          contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-          labelText: 'amount',
-          labelStyle: TextStyle(fontSize: 17, color: Colors.grey.shade500),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(width: 2, color: Color(0xffC5C5C5))),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(width: 2, color: Color(0xff368983))),
-        ),
-      ),
-    );
-  }
-
-  Padding explain() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: TextField(
-        focusNode: ex,
-        controller: expalin_C,
-        decoration: InputDecoration(
-          contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-          labelText: 'explain',
-          labelStyle: TextStyle(fontSize: 17, color: Colors.grey.shade500),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(width: 2, color: Color(0xffC5C5C5))),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(width: 2, color: Color(0xff368983))),
-        ),
-      ),
-    );
-  }
-
-  Padding name() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 15),
-        width: 300,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            width: 2,
-            color: Color(0xffC5C5C5),
-          ),
-        ),
-        child: DropdownButton<String>(
-          value: selctedItem,
-          onChanged: ((value) {
-            setState(() {
-              selctedItem = value!;
-            });
-          }),
-          items: _item
-              .map((e) => DropdownMenuItem(
-                    child: Container(
-                      alignment: Alignment.center,
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            child: Image.asset('images/${e}.png'),
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            e,
-                            style: TextStyle(fontSize: 18),
-                          )
-                        ],
-                      ),
-                    ),
-                    value: e,
-                  ))
-              .toList(),
-          selectedItemBuilder: (BuildContext context) => _item
-              .map((e) => Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        child: Image.asset('images/${e}.png'),
-                      ),
-                      SizedBox(width: 5),
-                      Text(e)
-                    ],
-                  ))
-              .toList(),
-          hint: Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              'Name',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-          dropdownColor: Colors.white,
-          isExpanded: true,
-          underline: Container(),
-        ),
-      ),
-    );
-  }
-
-  Column background_container(BuildContext context) {
+  // --- Background Widget ---
+  Widget _buildBackground(BuildContext context) {
     return Column(
       children: [
         Container(
           width: double.infinity,
-          height: 240,
+          height: 240, // Standard height
           decoration: BoxDecoration(
-            color: Color(0xff368983),
-            borderRadius: BorderRadius.only(
+            color: Theme.of(context).primaryColor, // Use theme color
+            borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(20),
               bottomRight: Radius.circular(20),
             ),
           ),
           child: Column(
             children: [
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 15),
+                padding: const EdgeInsets.symmetric(horizontal: 15),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Back Button
                     GestureDetector(
                       onTap: () {
-                        Navigator.of(context).pop();
+                        Navigator.of(context).pop(); // Navigate back
                       },
-                      child: Icon(Icons.arrow_back, color: Colors.white),
+                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
                     ),
-                    Text(
-                      'Adding',
+                    // Title
+                    const Text(
+                      'Add Transaction', // More descriptive title
                       style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
                           color: Colors.white),
                     ),
-                    Icon(
-                      Icons.attach_file_outlined,
+                    // Placeholder Icon (can be removed or used)
+                    const Icon(
+                      Icons.attach_file_outlined, // Or another relevant icon
                       color: Colors.white,
-                    )
+                      size: 28,
+                    ),
                   ],
                 ),
               )
@@ -358,6 +476,18 @@ class _Add_ScreenState extends State<Add_Screen> {
           ),
         ),
       ],
+    );
+  }
+
+  // Helper to show error messages
+  void _showErrorSnackbar(String message) {
+     if (!mounted) return; // Check if the widget is still active
+     ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 }

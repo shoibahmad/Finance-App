@@ -1,125 +1,178 @@
-import 'package:hive/hive.dart';
-import 'package:managment/data/model/add_date.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:managment/data/model/add_date.dart'; // Ensure this path is correct
 
-int totals = 0;
-
+// Access the Hive box (make sure it's opened in main.dart)
 final box = Hive.box<Add_data>('data');
 
-int total() {
-  var history2 = box.values.toList();
-  List a = [0, 0];
-  for (var i = 0; i < history2.length; i++) {
-    a.add(history2[i].IN == 'Income'
-        ? int.parse(history2[i].amount)
-        : int.parse(history2[i].amount) * -1);
+int calculateTimeValue(List<Add_data> dataList, bool isToday, int index) {
+  // Use int.tryParse to handle potential parsing errors
+  int? parsedAmount = int.tryParse(dataList[index].amount);
+
+  // If parsing fails (amount is not a valid integer), return 0 or handle the error as needed.
+  int timeValue = parsedAmount ?? 0; // Use 0 as a default value
+
+  return timeValue;
+}
+double total() {
+  var history = box.values.toList();
+  double totalAmount = 0.0;
+
+  for (var item in history) {
+    // Use double.tryParse for safe conversion from String to double
+    double? amount = double.tryParse(item.amount);
+
+    if (amount != null) { // Proceed only if parsing was successful
+      if (item.IN == 'Income') {
+        totalAmount += amount;
+      } else if (item.IN == 'Expand') { // Assuming 'Expand' means expense
+        totalAmount -= amount;
+      }
+    } else {
+      // Optional: Log or handle cases where amount is not a valid number
+      print("Warning: Could not parse amount '${item.amount}' for item '${item.name}'. Skipping in total calculation.");
+    }
   }
-  totals = a.reduce((value, element) => value + element);
-  return totals;
+  return totalAmount;
 }
 
-int income() {
-  var history2 = box.values.toList();
-  List a = [0, 0];
-  for (var i = 0; i < history2.length; i++) {
-    a.add(history2[i].IN == 'Income' ? int.parse(history2[i].amount) : 0);
+
+double income() {
+  var history = box.values.toList();
+  double incomeAmount = 0.0;
+
+  for (var item in history) {
+    if (item.IN == 'Income') {
+      double? amount = double.tryParse(item.amount);
+      if (amount != null) {
+        incomeAmount += amount;
+      } else {
+        print("Warning: Could not parse amount '${item.amount}' for income item '${item.name}'. Skipping.");
+      }
+    }
   }
-  totals = a.reduce((value, element) => value + element);
-  return totals;
+  return incomeAmount;
 }
 
-int expenses() {
-  var history2 = box.values.toList();
-  List a = [0, 0];
-  for (var i = 0; i < history2.length; i++) {
-    a.add(history2[i].IN == 'Income' ? 0 : int.parse(history2[i].amount) * -1);
+
+double expenses() {
+  var history = box.values.toList();
+  double expenseAmount = 0.0;
+
+  for (var item in history) {
+    if (item.IN == 'Expand') { // Assuming 'Expand' means expense
+      double? amount = double.tryParse(item.amount);
+      if (amount != null) {
+        expenseAmount += amount; // Summing up the expense amounts
+      } else {
+         print("Warning: Could not parse amount '${item.amount}' for expense item '${item.name}'. Skipping.");
+      }
+    }
   }
-  totals = a.reduce((value, element) => value + element);
-  return totals;
+  return expenseAmount;
 }
 
 List<Add_data> today() {
-  List<Add_data> a = [];
-  var history2 = box.values.toList();
-  DateTime date = new DateTime.now();
-  for (var i = 0; i < history2.length; i++) {
-    if (history2[i].datetime.day == date.day) {
-      a.add(history2[i]);
+  var history = box.values.toList();
+  List<Add_data> todayResults = [];
+  DateTime now = DateTime.now();
+  DateTime todayStart = DateTime(now.year, now.month, now.day); // Start of today
+   DateTime todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59); // End of today
+
+
+  for (var item in history) {
+    // Check if the item's date falls within today
+    if (item.datetime.isAfter(todayStart.subtract(const Duration(microseconds: 1))) &&
+        item.datetime.isBefore(todayEnd.add(const Duration(microseconds: 1)))) {
+      todayResults.add(item);
     }
   }
-  return a;
+   // Optional: Sort by time if needed
+  todayResults.sort((a, b) => b.datetime.compareTo(a.datetime));
+  return todayResults;
 }
 
+/// Filters transactions for the current week (last 7 days).
 List<Add_data> week() {
-  List<Add_data> a = [];
-  DateTime date = new DateTime.now();
-  var history2 = box.values.toList();
-  for (var i = 0; i < history2.length; i++) {
-    if (date.day - 7 <= history2[i].datetime.day &&
-        history2[i].datetime.day <= date.day) {
-      a.add(history2[i]);
+  var history = box.values.toList();
+  List<Add_data> weekResults = [];
+  DateTime now = DateTime.now();
+  DateTime sevenDaysAgo = now.subtract(const Duration(days: 7));
+
+  for (var item in history) {
+    // Check if the item's date is within the last 7 days (inclusive of today)
+    if (item.datetime.isAfter(sevenDaysAgo)) {
+      weekResults.add(item);
     }
   }
-  return a;
+   weekResults.sort((a, b) => b.datetime.compareTo(a.datetime));
+  return weekResults;
 }
 
+/// Filters transactions for the current month (last 30 days approximation).
+/// For exact month filtering, more complex date logic is needed.
 List<Add_data> month() {
-  List<Add_data> a = [];
-  var history2 = box.values.toList();
-  DateTime date = new DateTime.now();
-  for (var i = 0; i < history2.length; i++) {
-    if (history2[i].datetime.month == date.month) {
-      a.add(history2[i]);
-    }
+  var history = box.values.toList();
+  List<Add_data> monthResults = [];
+  DateTime now = DateTime.now();
+   DateTime thirtyDaysAgo = now.subtract(const Duration(days: 30));
+   // More accurate: Find the first day of the current month
+   // DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
+
+  for (var item in history) {
+     // Using 30 days ago for simplicity as per original structure
+     if (item.datetime.isAfter(thirtyDaysAgo)) {
+       monthResults.add(item);
+     }
+     // More accurate check:
+     // if (item.datetime.year == now.year && item.datetime.month == now.month) {
+     //    monthResults.add(item);
+     // }
   }
-  return a;
+   monthResults.sort((a, b) => b.datetime.compareTo(a.datetime));
+  return monthResults;
 }
 
+/// Filters transactions for the current year (last 365 days approximation).
+/// For exact year filtering, compare the year component.
 List<Add_data> year() {
-  List<Add_data> a = [];
-  var history2 = box.values.toList();
-  DateTime date = new DateTime.now();
-  for (var i = 0; i < history2.length; i++) {
-    if (history2[i].datetime.year == date.year) {
-      a.add(history2[i]);
-    }
+  var history = box.values.toList();
+  List<Add_data> yearResults = [];
+  DateTime now = DateTime.now();
+  DateTime yearAgo = now.subtract(const Duration(days: 365));
+  // More accurate:
+  // int currentYear = now.year;
+
+  for (var item in history) {
+    // Using 365 days ago for simplicity
+     if (item.datetime.isAfter(yearAgo)) {
+       yearResults.add(item);
+     }
+    // More accurate check:
+    // if (item.datetime.year == currentYear) {
+    //   yearResults.add(item);
+    // }
   }
-  return a;
+  yearResults.sort((a, b) => b.datetime.compareTo(a.datetime));
+  return yearResults;
 }
 
-int total_chart(List<Add_data> history2) {
-  List a = [0, 0];
+// --- Chart Data Helper (Example - adjust based on your Chart widget needs) ---
 
-  for (var i = 0; i < history2.length; i++) {
-    a.add(history2[i].IN == 'Income'
-        ? int.parse(history2[i].amount)
-        : int.parse(history2[i].amount) * -1);
-  }
-  totals = a.reduce((value, element) => value + element);
-  return totals;
-}
+/// Groups transactions by category name for chart display.
+/// Returns a map where keys are category names and values are total amounts.
+Map<String, double> groupTransactionsByCategory(List<Add_data> transactions) {
+  Map<String, double> categoryTotals = {};
 
-List time(List<Add_data> history2, bool hour) {
-  List<Add_data> a = [];
-  List total = [];
-  int counter = 0;
-  for (var c = 0; c < history2.length; c++) {
-    for (var i = c; i < history2.length; i++) {
-      if (hour) {
-        if (history2[i].datetime.hour == history2[c].datetime.hour) {
-          a.add(history2[i]);
-          counter = i;
-        }
-      } else {
-        if (history2[i].datetime.day == history2[c].datetime.day) {
-          a.add(history2[i]);
-          counter = i;
-        }
-      }
-    }
-    total.add(total_chart(a));
-    a.clear();
-    c = counter;
+  for (var item in transactions) {
+     double? amount = double.tryParse(item.amount);
+     if (amount != null) {
+       // Accumulate amounts for each category
+       categoryTotals.update(
+         item.name, // Assuming 'name' is the category
+         (value) => value + amount,
+         ifAbsent: () => amount,
+       );
+     }
   }
-  print(total);
-  return total;
+  return categoryTotals;
 }

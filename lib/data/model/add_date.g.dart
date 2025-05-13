@@ -9,7 +9,7 @@ part of 'add_date.dart';
 class AdddataAdapter extends TypeAdapter<Add_data> {
   @override
   final int typeId = 1;
-
+   
   @override
   Add_data read(BinaryReader reader) {
     final numOfFields = reader.readByte();
